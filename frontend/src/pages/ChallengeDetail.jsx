@@ -24,6 +24,14 @@ function statusColor(s) {
   return { text: '#9A948E', bg: '#F7F3EE', label: 'Not started' }
 }
 
+// How a completed session ended (server-decided). Null for older sessions
+// completed before end_reason was tracked — no badge shown in that case.
+function endReasonBadge(r) {
+  if (r === 'timer_expired') return { text: '#C2410C', bg: '#FEF3E8', label: 'Timed out' }
+  if (r === 'manual') return { text: '#6B6560', bg: '#F7F3EE', label: 'Ended by you' }
+  return null
+}
+
 export default function ChallengeDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
@@ -335,9 +343,19 @@ export default function ChallengeDetail() {
                           <span style={{ fontSize: '14px', fontWeight: 600, color: '#16120E' }}>
                             Session {session.session_number}: {session.title}
                           </span>
-                          <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: sc.bg, color: sc.text, flexShrink: 0 }}>
-                            {sc.label}
-                          </span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                            {session.status === 'completed' && (() => {
+                              const er = endReasonBadge(session.end_reason)
+                              return er ? (
+                                <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: er.bg, color: er.text }}>
+                                  {er.label}
+                                </span>
+                              ) : null
+                            })()}
+                            <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: sc.bg, color: sc.text }}>
+                              {sc.label}
+                            </span>
+                          </div>
                         </div>
 
                         <p style={{ fontSize: '12px', color: '#9A948E', margin: '0 0 8px', lineHeight: 1.6 }}>

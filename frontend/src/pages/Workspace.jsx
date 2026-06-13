@@ -287,6 +287,7 @@ export default function Workspace() {
   const [sessionEnded, setSessionEnded]   = useState(false)
   const [endingSession, setEndingSession] = useState(false)
   const [sessionScore, setSessionScore]   = useState(null)
+  const [endReason, setEndReason]         = useState(null) // "manual" | "timer_expired" | null
   // Post-session analysis (generated in the background on the server; polled after /end).
   const [showAnalysis, setShowAnalysis]   = useState(false)
   const [analysis, setAnalysis]           = useState(null)
@@ -480,6 +481,7 @@ export default function Workspace() {
       if (resp.ok) {
         const data = await resp.json().catch(() => ({}))
         setSessionScore(data.session_avg_pei ?? null)
+        setEndReason(data.end_reason ?? null)
         ok = true
         // Surface the analysis panel and start polling for the background result.
         setShowAnalysis(true)
@@ -755,6 +757,16 @@ export default function Workspace() {
                   fontWeight: 500,
                 }}>
                   Session ended
+                  {endReason === 'timer_expired' && (
+                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: '#FEF3E8', color: '#C2410C', marginLeft: '8px' }}>
+                      Timed out
+                    </span>
+                  )}
+                  {endReason === 'manual' && (
+                    <span style={{ fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px', background: '#F7F3EE', color: '#6B6560', marginLeft: '8px' }}>
+                      Ended by you
+                    </span>
+                  )}
                   {sessionScore != null && (
                     <span> · Session avg PEI: <strong style={{ color: '#C8102E' }}>{sessionScore}</strong></span>
                   )}

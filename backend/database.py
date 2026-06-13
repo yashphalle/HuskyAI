@@ -147,6 +147,10 @@ class UserChallengeSession(Base):
     status: Mapped[str] = mapped_column(String(32), default="not_started")
     started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # How a completed session ended, decided server-side: "manual" (user ended
+    # it) or "timer_expired" (deadline hit / auto-finalized). Null until completed
+    # and for sessions completed before this field existed.
+    end_reason: Mapped[str | None] = mapped_column(String(16), nullable=True)
     # Snapshot of the challenge's timer settings, captured when this session
     # starts, so later instructor edits don't disrupt an in-progress attempt.
     time_limit_minutes: Mapped[int | None] = mapped_column(Integer, nullable=True)

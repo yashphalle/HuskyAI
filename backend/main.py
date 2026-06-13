@@ -319,6 +319,9 @@ async def _finalize_session(conversation_id: str) -> float | None:
                     ucs.session_avg_pei = round(float(avg_pei), 2)
                 ucs.status = "completed"
                 ucs.completed_at = datetime.utcnow()
+                # This path is only reached via timer/deadline finalization.
+                if ucs.end_reason is None:
+                    ucs.end_reason = "timer_expired"
                 # Same background post-session analysis as the manual /end path.
                 if (ucs.session_analysis or {}).get("status") not in ("ready", "pending"):
                     ucs.session_analysis = _pending_blob()
@@ -759,15 +762,19 @@ async def end_conversation(
     )
     ucs = ucs_result.scalar_one_or_none()
 
+    # Did the timer already lapse? Decided server-side so the recorded end_reason
+    # can't be spoofed by the client, and reused by the min-turns gate below.
+    past_deadline = bool(
+        ucs
+        and ucs.time_limit_minutes
+        and ucs.started_at
+        and datetime.utcnow() >= ucs.started_at + timedelta(minutes=ucs.time_limit_minutes)
+    )
+
     # Min-turns gate: block an early manual end until the minimum turns are met,
     # unless the timer has already expired (the timer is a hard cap that wins).
     if ucs and ucs.min_turns:
         turns_done = conv.turn_count or 0
-        past_deadline = bool(
-            ucs.time_limit_minutes
-            and ucs.started_at
-            and datetime.utcnow() >= ucs.started_at + timedelta(minutes=ucs.time_limit_minutes)
-        )
         if turns_done < ucs.min_turns and not past_deadline:
             raise HTTPException(
                 status_code=400,
@@ -792,6 +799,10 @@ async def end_conversation(
             ucs.session_avg_pei = round(float(avg_pei), 2)
         ucs.status = "completed"
         ucs.completed_at = datetime.utcnow()
+        # Record how it ended, server-decided. Don't overwrite a reason already
+        # set by a prior finalize (e.g. timer auto-end that beat this call).
+        if ucs.end_reason is None:
+            ucs.end_reason = "timer_expired" if past_deadline else "manual"
         # Kick off the post-session analysis in the background unless one is
         # already done or in flight. Mark it "pending" now so the UI can poll.
         prior_status = (ucs.session_analysis or {}).get("status")
@@ -808,6 +819,7 @@ async def end_conversation(
         "session_avg_pei": round(float(avg_pei), 1) if avg_pei is not None else None,
         "turns": int(turn_count or 0),
         "analysis_status": (ucs.session_analysis or {}).get("status") if ucs else None,
+        "end_reason": ucs.end_reason if ucs else None,
     }
 
 

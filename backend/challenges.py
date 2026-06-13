@@ -1127,6 +1127,7 @@ async def get_challenge(
             "conversation_id": us.conversation_id if us else None,
             "started_at": us.started_at.isoformat() if us and us.started_at else None,
             "completed_at": us.completed_at.isoformat() if us and us.completed_at else None,
+            "end_reason": us.end_reason if us else None,
         })
 
     return {
@@ -1254,5 +1255,8 @@ async def complete_session(
 
     session_record.status = "completed"
     session_record.completed_at = datetime.utcnow()
+    # User-initiated completion from the challenge detail page.
+    if session_record.end_reason is None:
+        session_record.end_reason = "manual"
     await db.commit()
     return {"status": "completed"}
